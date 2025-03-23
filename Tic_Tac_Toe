@@ -1,0 +1,49 @@
+import kotlin.random.Random
+
+data class Board(val cells: CharArray = CharArray(9) { ' ' }) {
+    fun makeMove(pos: Int, player: Char): Board {
+        val newBoard = Board(cells.clone())
+        newBoard.cells[pos] = player
+        return newBoard
+    }
+
+    fun isWin(player: Char): Boolean {
+        val wins = listOf(
+            listOf(0, 1, 2), listOf(3, 4, 5), listOf(6, 7, 8),
+            listOf(0, 3, 6), listOf(1, 4, 7), listOf(2, 5, 8),
+            listOf(0, 4, 8), listOf(2, 4, 6)
+        )
+        return wins.any { it.all { idx -> cells[idx] == player } }
+    }
+
+    fun availableMoves() = cells.indices.filter { cells[it] == ' ' }
+}
+
+data class Player(val strategy: List<Double>) {
+    fun move(board: Board): Int = board.availableMoves().maxByOrNull { strategy[it] } ?: 0
+}
+
+fun evolvePlayers(popSize: Int, generations: Int): Player {
+    var population = List(popSize) { Player(List(9) { Random.nextDouble() }) }
+
+    repeat(generations) {
+        val scores = population.map { player ->
+            (0 until 10).sumOf {
+                val board = Board()
+                val move = player.move(board)
+                if (board.makeMove(move, 'X').isWin('X')) 1 else 0
+            }
+        }
+        val selected = population.zip(scores).sortedByDescending { it.second }.take(popSize / 2).map { it.first }
+        population = selected + selected.map { mutate(it) }
+    }
+
+    return population.maxByOrNull { it.strategy.sum() }!!
+}
+
+fun mutate(player: Player) = Player(player.strategy.map { it + Random.nextDouble(-0.1, 0.1) })
+
+fun main() {
+    val ai = evolvePlayers(100, 1000)
+    println("AI Strategy: ${ai.strategy}")
+}
